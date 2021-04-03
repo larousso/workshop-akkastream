@@ -40,4 +40,20 @@ public class JokeService {
                 });
     }
 
+    public CompletionStage<Joke> getRandomJokeByCategory(String category) {
+        System.out.println(category + " -> start");
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://api.chucknorris.io/jokes/random?category=%s".formatted(category)))
+                .timeout(Duration.ofMinutes(2))
+                .header("Content-Type", "application/json")
+                .build();
+        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(HttpResponse::body)
+                .thenApply(jokeJsonString -> {
+                    Joke joke = Joke.fromJsonString(jokeJsonString);
+                    System.out.println(category + " [" + Thread.currentThread().getName() + "]" +  " -> " + joke);
+                    return joke;
+                });
+    }
+
 }

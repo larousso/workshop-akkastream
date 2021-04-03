@@ -4,6 +4,8 @@ import akka.actor.ActorSystem;
 import akka.stream.javadsl.Source;
 import fr.maif.workshop.service.JokeService;
 
+import java.util.List;
+
 public class Step1 {
 
     public static void main(String[] args) {
@@ -20,8 +22,12 @@ public class Step1 {
 
     public void run() {
         //
-        Source.range(0, 20);
-        // Récupérer les blagues comme dans step 0
+        Source.from(List.of("animal", "career", "celebrity", "dev", "explicit", "fashion", "food", "history", "money", "movie", "music", "political", "religion", "science", "sport", "travel"));
+        // Filtrer non explicit
+        // Doubler les catégories
+        // Récupérer 1 blague par catégorie avec 5 requêtes en parallèle
+        // Garder uniquement les blagues
+        // Concatener toutes les blagues
     }
 
 }

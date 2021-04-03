@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class Step0 {
@@ -23,10 +22,8 @@ public class Step0 {
 
     public void run() {
         System.out.println("Début");
-        List<CompletionStage<Joke>> allFutures = IntStream.range(0, 50)
-                .boxed()
-                .map(String::valueOf)
-                .map(this.jokeService::getJoke)
+        List<CompletionStage<Joke>> allFutures = Stream.of("animal", "career", "celebrity", "dev", "explicit", "fashion", "food", "history", "money", "movie", "music", "political", "religion", "science", "sport", "travel")
+                .map(this.jokeService::getRandomJokeByCategory)
                 .collect(Collectors.toList());
 
         sequence(allFutures).toCompletableFuture().join();
@@ -40,7 +37,7 @@ public class Step0 {
                         Stream.concat(list.stream(), Stream.of(value)).collect(Collectors.toList())
                 ),
                 (futureList1, futureList2) -> futureList1.thenCombine(futureList2, (list1, list2) ->
-                    Stream.concat(list1.stream(), list2.stream()).collect(Collectors.toList())
+                        Stream.concat(list1.stream(), list2.stream()).collect(Collectors.toList())
                 ));
     }
 }
