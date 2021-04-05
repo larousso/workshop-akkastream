@@ -1,5 +1,18 @@
 # Akkastream workshop 
 
+## Pré-requis
+
+ * JDK 11 minimum
+ * docker 
+
+Sans docker il faut pouvoir accéder au vpn et installer les cert maifs dans le jdk 
+
+Télécharger `CA_MAIF_SUBCA-SERVICE.cer` https://pki.maif.local/public/retrieve/ca_certs.jsp
+
+```sh 
+keytool -import -alias my_certificates -keystore $JAVA_PATH/lib/security/cacerts -storepass changeit -file ~/certificates/CA_MAIF_SUBCA-SERVICE.cer
+```
+
 ## Introduction 
 
  * Non bloquant dans le jdk 
@@ -10,6 +23,8 @@
 ## Spec reactive stream 
 
 [http://www.reactive-streams.org/](http://www.reactive-streams.org/)
+
+[https://github.com/reactive-streams/reactive-streams-jvm](https://github.com/reactive-streams/reactive-streams-jvm)
 
 Implémentations : 
 
@@ -96,3 +111,41 @@ Les Sink :
  * `lastOption` : retourne le dernier élément du stream s'il existe
  * `seq` : collect les éléments dans une liste 
  * `ignore` : consomme uniquement le stream sans rien retourner
+
+
+## Exercices 
+
+### Exercice 1 : fonction de base 
+
+On part d'une source de catégories : 
+
+```java
+Source.from(List.of("animal", "career", "celebrity", "dev", "explicit", "fashion", "food", "history", "money", "movie", "music", "political", "religion", "science", "sport", "travel"));
+```
+
+ * Doubler chaque catégorie
+ * Récupérer 1 blague par catégorie avec 5 requêtes en parallèle en utilisant `JokeService.getRandomJokeByCategory`
+ * Garder uniquement l'attribut blague (value)
+ * Concaténer toutes les blagues
+ * A la fin afficher le string obtenu 
+
+Tester de remplacer `JokeService.getRandomJokeByCategory` par `JokeService.streamRandomJokeByCategory` en utilisant `flatMapConcat`. 
+
+Qu'est ce qui se passe ?
+
+Tester avec `flatMapMerge`
+
+### Exercice 2 : 
+
+Intégration avec des briques externes : 
+
+[https://doc.akka.io/docs/alpakka/current/index.html](https://doc.akka.io/docs/alpakka/current/index.html)
+
+[https://doc.akka.io/docs/alpakka-kafka/current/](https://doc.akka.io/docs/alpakka-kafka/current/)
+
+Lire les catégories depuis un fichier csv et les envoyer dans kafka. 
+
+Lire les catégories depuis kafka, récupérer des blagues et stocker les blagues dans postgresql. 
+
+Kafdrop maif : 
+[http://kafdrop-1.broker-build-map.build-broker.cloud.maif.local:15974/](http://kafdrop-1.broker-build-map.build-broker.cloud.maif.local:15974/)

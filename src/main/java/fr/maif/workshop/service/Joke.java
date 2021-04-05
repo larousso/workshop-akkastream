@@ -26,14 +26,14 @@ public class Joke {
     public final String iconUrl;
     public final String url;
     public final String value;
-    public final List<String> categories;
+    public final List<Category> categories;
 
     public static JsonRead<Joke> read =
             _string("id", Joke.builder()::id)
             .and(_string("icon_url"), JokeBuilder::iconUrl)
             .and(_string("url"), JokeBuilder::url)
             .and(_string("value"), JokeBuilder::value)
-            .and(__("categories", _list(_string())).map(Value::toJavaList), JokeBuilder::categories)
+            .and(__("categories", _list(Category.format)).map(Value::toJavaList), JokeBuilder::categories)
             .map(JokeBuilder::build);
 
     public static Joke fromJson(JsonNode json) {

@@ -1,5 +1,8 @@
 package fr.maif.workshop.service;
 
+import akka.NotUsed;
+import akka.stream.javadsl.Source;
+
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -55,5 +58,8 @@ public class JokeService {
                     return joke;
                 });
     }
-
+    public Source<Joke, NotUsed> streamRandomJokeByCategory(String category) {
+        return Source.repeat("dummy")
+                .mapAsync(1, __ -> getRandomJokeByCategory(category));
+    }
 }
