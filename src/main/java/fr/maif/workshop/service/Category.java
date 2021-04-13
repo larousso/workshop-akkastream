@@ -1,6 +1,5 @@
 package fr.maif.workshop.service;
 
-import com.fasterxml.jackson.databind.node.TextNode;
 import fr.maif.json.Json;
 import fr.maif.json.JsonFormat;
 import lombok.AllArgsConstructor;
@@ -11,10 +10,9 @@ import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 
-import java.util.Optional;
-
 import static fr.maif.json.Json.$;
 import static fr.maif.json.JsonRead._string;
+import static java.util.function.Function.identity;
 
 @AllArgsConstructor
 @ToString
@@ -23,30 +21,32 @@ public class Category {
 
     public final String name;
 
-    public static JsonFormat<Category> format = JsonFormat.of(
-            _string("name").map(Category::new),
-            category -> Json.obj($("name", category.name))
-    );
+    public static JsonFormat<Category> format() {
+        return JsonFormat.of(
+                _string("name").map(Category::new),
+                category -> Json.obj($("name", category.name))
+        );
+    }
 
     public static StringSerializer stringSerializer = new StringSerializer();
     public static StringDeserializer stringDeserializer = new StringDeserializer();
 
     public static Serializer<Category> kafkaSerializer = (s, category) ->
-            stringSerializer.serialize(s, Json.stringify(Json.toJson(category, format)));
+            stringSerializer.serialize(s, Json.stringify(Json.toJson(category, format())));
 
-    public static Deserializer<Optional<Category>> kafkaDeserializer = (s, bytes) -> {
+    public static Deserializer<Category> kafkaDeserializer = (s, bytes) -> {
         try {
             String strValue = stringDeserializer.deserialize(s, bytes);
-            return Json.fromJson(Json.parse(strValue), format).fold(
+            return Json.fromJson(Json.parse(strValue), format()).fold(
                     err -> {
                         System.err.println(strValue + " - " + err);
-                        return Optional.empty();
+                        return null;
                     },
-                    Optional::ofNullable
+                    identity()
             );
         } catch (Exception e) {
             e.printStackTrace();
-            return Optional.empty();
+            return null;
         }
     };
 }

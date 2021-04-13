@@ -8,6 +8,7 @@ import io.vavr.Value;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.ToString;
 
 import java.util.List;
@@ -20,6 +21,7 @@ import static fr.maif.json.JsonRead._string;
 @AllArgsConstructor
 @ToString
 @EqualsAndHashCode
+@Getter
 public class Joke {
 
     public final String id;
@@ -33,7 +35,7 @@ public class Joke {
             .and(_string("icon_url"), JokeBuilder::iconUrl)
             .and(_string("url"), JokeBuilder::url)
             .and(_string("value"), JokeBuilder::value)
-            .and(__("categories", _list(Category.format)).map(Value::toJavaList), JokeBuilder::categories)
+            .and(__("categories", _list(_string().map(Category::new))).map(Value::toJavaList), JokeBuilder::categories)
             .map(JokeBuilder::build);
 
     public static Joke fromJson(JsonNode json) {

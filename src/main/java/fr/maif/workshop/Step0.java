@@ -17,7 +17,7 @@ public class Step0 {
     private final JokeService jokeService;
 
     public Step0() {
-        this.jokeService = new JokeService();
+        this.jokeService = JokeService.localJokeService();
     }
 
     public void run() {

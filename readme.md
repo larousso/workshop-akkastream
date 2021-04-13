@@ -2,16 +2,18 @@
 
 ## Pré-requis
 
- * JDK 11 minimum
- * docker 
+ * JDK 11 minimum 
 
-Sans docker il faut pouvoir accéder au vpn et installer les cert maifs dans le jdk 
+Dans cet exercice, il faut utiliser kafka et postgresql :
 
-Télécharger `CA_MAIF_SUBCA-SERVICE.cer` https://pki.maif.local/public/retrieve/ca_certs.jsp
+* Pour ceux qui ont docker : `docker-compose up`
+* Pour les autres il faut pouvoir accéder au vpn et installer les cert maifs dans le jdk (config dans `application.conf` + `localhost-dev.p12` + `CA_MAIF_SUBCA-SERVICE.cer`) :
+   * kafka `map` maif : `CA_MAIF_SUBCA-SERVICE.cer` à ajouter dans les cert du jdk 
+   ```sh 
+      keytool -import -alias my_certificates -keystore $JAVA_PATH/lib/security/cacerts -storepass changeit -file ~/certificates/CA_MAIF_SUBCA-SERVICE.cer
+   ```
+   * postgresql dispo sur clever (config dans `application.conf`) 
 
-```sh 
-keytool -import -alias my_certificates -keystore $JAVA_PATH/lib/security/cacerts -storepass changeit -file ~/certificates/CA_MAIF_SUBCA-SERVICE.cer
-```
 
 ## Introduction 
 
@@ -124,10 +126,16 @@ Source.from(List.of("animal", "career", "celebrity", "dev", "explicit", "fashion
 ```
 
  * Doubler chaque catégorie
- * Récupérer 1 blague par catégorie avec 5 requêtes en parallèle en utilisant `JokeService.getRandomJokeByCategory`
+ * Récupérer 1 blague par catégorie avec 2 requêtes en parallèle en utilisant `JokeService.getRandomJokeByCategory`
  * Garder uniquement l'attribut blague (value)
+ * Ajouter une `","` entre chaque blagues, un `"["` au début et un `"]"` à la fin   
  * Concaténer toutes les blagues
  * A la fin afficher le string obtenu 
+
+Version alternative : 
+
+ * logger l'avancement des concatenations (`scan`)  
+
 
 Tester de remplacer `JokeService.getRandomJokeByCategory` par `JokeService.streamRandomJokeByCategory` en utilisant `flatMapConcat`. 
 
@@ -135,17 +143,69 @@ Qu'est ce qui se passe ?
 
 Tester avec `flatMapMerge`
 
-### Exercice 2 : 
+### Exercice 1 bis : flow
 
-Intégration avec des briques externes : 
+Refactorer le stream en utilisant des flows dédiés pour chaque étape.
+
+Pour créer un flow, on utilise : 
+
+```java
+Flow<Joke, Joke, NotUsed> jokesFlow = Flow.<Joke>create();
+```
+
+### Exercice 2 : Intégration avec des briques externes 
 
 [https://doc.akka.io/docs/alpakka/current/index.html](https://doc.akka.io/docs/alpakka/current/index.html)
 
 [https://doc.akka.io/docs/alpakka-kafka/current/](https://doc.akka.io/docs/alpakka-kafka/current/)
 
-Lire les catégories depuis un fichier csv et les envoyer dans kafka. 
+Lire les catégories depuis un fichier csv et les envoyer dans kafka : 
 
-Lire les catégories depuis kafka, récupérer des blagues et stocker les blagues dans postgresql. 
+ * Pour lire depuis un fichier, il faut utiliser `FileIO`.
+ * Pour envoyer dans kafka il y'a 2 approches 
+   * `Flow` : `Producer.flexFlow` 
+   * `Sink` : `Producer.plainSink`
 
-Kafdrop maif : 
-[http://kafdrop-1.broker-build-map.build-broker.cloud.maif.local:15974/](http://kafdrop-1.broker-build-map.build-broker.cloud.maif.local:15974/)
+Lire les catégories depuis kafka, rechercher des blagues et stocker les blagues dans postgresql et commiter une fois ok :
+   
+ * `Consumer.committableSource` pour lire un topic  
+ * Utiliser le `JokeService.asyncJokeUpsert` pour stocker dans postgresql
+ * `Committer.flow(settings)` ou `Committer.sink(settings)` pour commiter
+ * `asSourceWithContext` pour mettre l'offset de côté 
+
+Pour voir les messages kafdrop :
+
+ * maif : [http://kafdrop-1.broker-build-map.build-broker.cloud.maif.local:15974/](http://kafdrop-1.broker-build-map.build-broker.cloud.maif.local:15974/)
+ * local : [http://localhost:9001](http://localhost:9001)
+
+
+Version ++ : 
+
+ * Toutes les 10 secondes, publier le fichier de catégories dans kafka 
+
+### Exercice 3 : Gestion des erreurs 
+
+Partir de l'exercice 2 et remplacer `JokeService.asyncJokeUpsert` par `JokeService.asyncJokeUpsertRandomCrash`. 
+
+Utiliser `RestartSource` pour rendre le système resilient aux crashs. 
+
+Regarder aussi les méthodes `recover` et `recoverWithRetries`.  
+
+### Exercice 4 : Gérer les APIs bloquantes 
+
+Il existe dans  `JokeService` une version jdbc bloquante pour faire l'upsert `JokeService.blockingJokeUpsert`.
+
+Comment faire pour gérer du bloquant dans du reactif ?
+
+La stratégie est d'utiliser un pool de thread dédié. 
+
+### Exercice 5 : Appels récursifs 
+
+Récupérer tous les personnages de star wars : 
+
+ * https://swapi.dev/api/people/?page=n 
+ * Utiliser `Source.unfoldAsync`
+
+### Exercice 6 : les Materialized values
+
+A tester avec `Source.queue` ou `KillSwitch`. 
