@@ -24,7 +24,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import java.nio.file.Path;
 import java.util.Objects;
 
-public class Step2 {
+public class Step4 {
 
     private ProducerSettings<String, Category> producerSettings;
     private ConsumerSettings<String, Category> consumerSettings;
@@ -32,14 +32,14 @@ public class Step2 {
 
     public static class ProducerMain {
         public static void main(String[] args) {
-            Step2 step2 = new Step2();
+            Step4 step2 = new Step4();
             step2.runProducer();
         }
     }
 
     public static class ConsumerMain {
         public static void main(String[] args) {
-            Step2 step2 = new Step2();
+            Step4 step2 = new Step4();
             step2.runConsumer();
         }
     }
@@ -48,7 +48,7 @@ public class Step2 {
     private final JokeService jokeService;
     private final ActorSystem system;
 
-    public Step2() {
+    public Step4() {
         this.jokeService = JokeService.localJokeService();
         this.system = ActorSystem.create();
         this.topicName = "test-ade";
@@ -57,30 +57,42 @@ public class Step2 {
     }
 
     public void runProducer() {
-        /*
-        Lire les catégories depuis un fichier csv et les envoyer dans kafka :
-
-         * Pour lire depuis un fichier, il faut utiliser `FileIO`.
-         * Pour envoyer dans kafka il y'a 2 approches
-           * `Flow` : `Producer.flexFlow`
-           * `Sink` : `Producer.plainSink`
-
-         */
-        FileIO.fromPath(Path.of("src/main/resources/categories.csv"));
+        FileIO.fromPath(Path.of("src/main/resources/categories.csv"))
+                .via(Framing.delimiter(ByteString.fromString("\n"), 10000, FramingTruncation.ALLOW))
+                .map(ByteString::utf8String)
+                .map(Category::new)
+                .map(category -> ProducerMessage.single(new ProducerRecord<>("test-ade", category.name, category)))
+                .via(Producer.flexiFlow(producerSettings))
+                .runWith(Sink.ignore(), system)
+                .whenComplete((__, e) -> {
+                    if (e != null) {
+                        e.printStackTrace();
+                    } else {
+                        System.out.println("Producer is done");
+                    }
+                });
 
     }
 
     public void runConsumer() {
-        /*
-            Lire les catégories depuis kafka, rechercher des blagues et stocker les blagues dans postgresql et commiter une fois ok :
-
-             * `Consumer.committableSource` pour lire un topic
-             * Utiliser le `JokeService.asyncJokeUpsert` pour stocker dans postgresql
-             * `Committer.flow(settings)` ou `Committer.sink(settings)` pour commiter
-             * `asSourceWithContext` pour mettre l'offset de côté
-       */
         CommitterSettings settings = CommitterSettings.create(system);
-        Consumer.committableSource(consumerSettings, Subscriptions.topics(topicName));
+        Consumer.committableSource(consumerSettings, Subscriptions.topics(topicName))
+                .asSourceWithContext(ConsumerMessage.CommittableMessage::committableOffset)
+                .filter(m -> Objects.nonNull(m.record().value()))
+                .mapAsync(1, m -> jokeService.getRandomJokeByCategory(m.record().value().name))
+                // TODO : remplacer par la version bloquante
+                .mapAsync(1, joke -> jokeService.asyncJokeUpsert(joke))
+                .asSource()
+                .map(Pair::second)
+                .via(Committer.flow(settings))
+                .runWith(Sink.ignore(), system)
+                .whenComplete((__, e) -> {
+                    if (e != null) {
+                        e.printStackTrace();
+                    } else {
+                        System.out.println("Consumer is done");
+                    }
+                });
     }
 
 

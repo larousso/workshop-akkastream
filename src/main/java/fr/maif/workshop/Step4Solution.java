@@ -11,11 +11,9 @@ import akka.kafka.Subscriptions;
 import akka.kafka.javadsl.Committer;
 import akka.kafka.javadsl.Consumer;
 import akka.kafka.javadsl.Producer;
-import akka.stream.RestartSettings;
 import akka.stream.javadsl.FileIO;
 import akka.stream.javadsl.Framing;
 import akka.stream.javadsl.FramingTruncation;
-import akka.stream.javadsl.RestartSource;
 import akka.stream.javadsl.Sink;
 import akka.util.ByteString;
 import fr.maif.workshop.service.Category;
@@ -24,25 +22,29 @@ import fr.maif.workshop.utils.KafkaSettings;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
-public class Step3 {
+public class Step4Solution {
 
     private ProducerSettings<String, Category> producerSettings;
     private ConsumerSettings<String, Category> consumerSettings;
     private String topicName;
+    private final Executor ec = Executors.newFixedThreadPool(10);
 
     public static class ProducerMain {
         public static void main(String[] args) {
-            Step3 step2 = new Step3();
+            Step4Solution step2 = new Step4Solution();
             step2.runProducer();
         }
     }
 
     public static class ConsumerMain {
         public static void main(String[] args) {
-            Step3 step2 = new Step3();
+            Step4Solution step2 = new Step4Solution();
             step2.runConsumer();
         }
     }
@@ -51,7 +53,7 @@ public class Step3 {
     private final JokeService jokeService;
     private final ActorSystem system;
 
-    public Step3() {
+    public Step4Solution() {
         this.jokeService = JokeService.localJokeService();
         this.system = ActorSystem.create();
         this.topicName = "test-ade";
@@ -78,17 +80,15 @@ public class Step3 {
     }
 
     public void runConsumer() {
-        /*
-        Utiliser `RestartSource` pour rendre le système resilient aux crashs.
-
-        Regarder aussi les méthodes `recover` et `recoverWithRetries`.
-         */
         CommitterSettings settings = CommitterSettings.create(system);
         Consumer.committableSource(consumerSettings, Subscriptions.topics(topicName))
                 .asSourceWithContext(ConsumerMessage.CommittableMessage::committableOffset)
                 .filter(m -> Objects.nonNull(m.record().value()))
                 .mapAsync(1, m -> jokeService.getRandomJokeByCategory(m.record().value().name))
-                .mapAsync(1, joke -> jokeService.asyncJokeUpsertRandomCrash(joke))
+                .mapAsync(1, joke -> CompletableFuture.supplyAsync(() ->
+                        jokeService.blockingJokeUpsert(joke),
+                        ec
+                ))
                 .asSource()
                 .map(Pair::second)
                 .via(Committer.flow(settings))

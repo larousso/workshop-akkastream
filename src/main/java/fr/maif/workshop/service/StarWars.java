@@ -11,9 +11,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.function.Function;
 
-import static fr.maif.json.JsonRead.__;
 import static fr.maif.json.JsonRead._list;
 import static fr.maif.json.JsonRead._opt;
 import static fr.maif.workshop.service.StarWarsCharacter.readCharacter;

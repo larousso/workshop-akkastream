@@ -27,7 +27,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Objects;
 
-public class Step3 {
+public class Step3Solution {
 
     private ProducerSettings<String, Category> producerSettings;
     private ConsumerSettings<String, Category> consumerSettings;
@@ -35,14 +35,14 @@ public class Step3 {
 
     public static class ProducerMain {
         public static void main(String[] args) {
-            Step3 step2 = new Step3();
+            Step3Solution step2 = new Step3Solution();
             step2.runProducer();
         }
     }
 
     public static class ConsumerMain {
         public static void main(String[] args) {
-            Step3 step2 = new Step3();
+            Step3Solution step2 = new Step3Solution();
             step2.runConsumer();
         }
     }
@@ -51,7 +51,7 @@ public class Step3 {
     private final JokeService jokeService;
     private final ActorSystem system;
 
-    public Step3() {
+    public Step3Solution() {
         this.jokeService = JokeService.localJokeService();
         this.system = ActorSystem.create();
         this.topicName = "test-ade";
@@ -78,20 +78,21 @@ public class Step3 {
     }
 
     public void runConsumer() {
-        /*
-        Utiliser `RestartSource` pour rendre le système resilient aux crashs.
-
-        Regarder aussi les méthodes `recover` et `recoverWithRetries`.
-         */
         CommitterSettings settings = CommitterSettings.create(system);
-        Consumer.committableSource(consumerSettings, Subscriptions.topics(topicName))
-                .asSourceWithContext(ConsumerMessage.CommittableMessage::committableOffset)
-                .filter(m -> Objects.nonNull(m.record().value()))
-                .mapAsync(1, m -> jokeService.getRandomJokeByCategory(m.record().value().name))
-                .mapAsync(1, joke -> jokeService.asyncJokeUpsertRandomCrash(joke))
-                .asSource()
-                .map(Pair::second)
-                .via(Committer.flow(settings))
+
+        RestartSource
+                .onFailuresWithBackoff(
+                        RestartSettings.create(Duration.ofSeconds(1), Duration.ofSeconds(30), 0.2),
+                        () -> Consumer
+                                .committableSource(consumerSettings, Subscriptions.topics(topicName))
+                                .asSourceWithContext(ConsumerMessage.CommittableMessage::committableOffset)
+                                .filter(m -> Objects.nonNull(m.record().value()))
+                                .mapAsync(1, m -> jokeService.getRandomJokeByCategory(m.record().value().name))
+                                .mapAsync(1, joke -> jokeService.asyncJokeUpsertRandomCrash(joke))
+                                .asSource()
+                                .map(Pair::second)
+                                .via(Committer.flow(settings))
+                )
                 .runWith(Sink.ignore(), system)
                 .whenComplete((__, e) -> {
                     if (e != null) {

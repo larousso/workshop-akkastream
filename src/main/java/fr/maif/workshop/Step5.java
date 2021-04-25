@@ -1,4 +1,4 @@
-package fr.maif.workshop.utils;
+package fr.maif.workshop;
 
 import akka.actor.ActorSystem;
 import akka.japi.Pair;
@@ -26,14 +26,14 @@ public class Step5 {
                 )
                 .mapConcat(l -> l)
                 .runWith(Sink.foreach(System.out::println), system)
-        .whenComplete((r, e) -> {
-            if (Objects.nonNull(e)) {
-                e.printStackTrace();
-            } else {
-                System.out.println("Done");
-            }
-            system.terminate();
-        });
+                .whenComplete((r, e) -> {
+                    if (Objects.nonNull(e)) {
+                        e.printStackTrace();
+                    } else {
+                        System.out.println("Done");
+                    }
+                    system.terminate();
+                });
 
     }
 
