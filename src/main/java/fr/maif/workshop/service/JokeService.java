@@ -156,15 +156,13 @@ public class JokeService implements Closeable {
     }
 
     private ResultQuery<Record> upsertQuery(DSLContext dslContext, Joke joke) {
-        return dslContext.resultQuery("""
-                            insert into joke(id, icon_url, url, value, categories) values ({0}, {1}, {2}, {3}, {4}) 
-                            ON CONFLICT ON CONSTRAINT joke_pkey DO UPDATE 
-                                SET icon_url = {1}, 
-                                    url = {2}, 
-                                    value = {3}, 
-                                    categories = {4} 
-                            returning id, icon_url, url, value, categories
-                        """,
+        return dslContext.resultQuery("insert into joke(id, icon_url, url, value, categories) values ({0}, {1}, {2}, {3}, {4}) \n" +
+                        "                            ON CONFLICT ON CONSTRAINT joke_pkey DO UPDATE \n" +
+                        "                                SET icon_url = {1}, \n" +
+                        "                                    url = {2}, \n" +
+                        "                                    value = {3}, \n" +
+                        "                                    categories = {4} \n" +
+                        "                            returning id, icon_url, url, value, categories",
                 val(joke.id),
                 val(joke.iconUrl),
                 val(joke.url),
