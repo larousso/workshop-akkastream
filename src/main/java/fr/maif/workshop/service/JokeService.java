@@ -68,15 +68,13 @@ public class JokeService implements Closeable {
     }
 
     public JokeService initDatabase() {
-        dslContext.execute("""
-                create table if not exists joke(
-                    id text primary key not null,
-                    icon_url text,
-                    url text,
-                    value text,
-                    categories text[]    
-                )               
-                """);
+        dslContext.execute("create table if not exists joke(\n" +
+                "                    id text primary key not null,\n" +
+                "                    icon_url text,\n" +
+                "                    url text,\n" +
+                "                    value text,\n" +
+                "                    categories text[]    \n" +
+                "                )               ");
         return this;
     }
 
@@ -99,7 +97,7 @@ public class JokeService implements Closeable {
     public CompletionStage<Joke> getRandomJokeByCategory(String category) {
         System.out.println(category + " -> start");
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("https://api.chucknorris.io/jokes/random?category=%s".formatted(category)))
+                .uri(URI.create(String.format("https://api.chucknorris.io/jokes/random?category=%s", category)))
                 .timeout(Duration.ofMinutes(2))
                 .header("Content-Type", "application/json")
                 .build();
